@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="generator.html"><strong aria-hidden="true">2.</strong> Using the source generator</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="wrappers.html"><strong aria-hidden="true">2.1.</strong> Wrappers</a></li><li class="chapter-item expanded "><a href="options.html"><strong aria-hidden="true">2.2.</strong> Configuration options</a></li></ol></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="generator/generator.html"><strong aria-hidden="true">2.</strong> Using the source generator</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="generator/wrappers.html"><strong aria-hidden="true">2.1.</strong> Wrappers</a></li><li class="chapter-item expanded "><a href="generator/options.html"><strong aria-hidden="true">2.2.</strong> Configuration options</a></li></ol></li><li class="chapter-item expanded "><a href="generic-types.html"><strong aria-hidden="true">3.</strong> Generic types</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -207,12 +207,12 @@ partial class SampleClass
 <ol>
 <li>Be a serde-dn built-in type, like <code>int</code> or <code>string</code>.</li>
 <li>If the type is in the current assembly, implement <code>I(De)Serialize</code>.</li>
-<li>Be defined in an external assembly, where the source generator will automatically wrap the type (see <a href="./wrappers.html">generated wrappers</a>).</li>
-<li>Define a <a href="./wrappers.html">wrapper type</a> in the current assembly named <code>&lt;TypeName&gt;Wrap</code> in the <code>Serde</code> namespace.</li>
+<li>Be defined in an external assembly, where the source generator will automatically wrap the type (see <a href="generator/./wrappers.html">generated wrappers</a>).</li>
+<li>Define a <a href="generator/./wrappers.html">wrapper type</a> in the current assembly named <code>&lt;TypeName&gt;Wrap</code> in the <code>Serde</code> namespace.</li>
 <li>Specify a custom wrapper.</li>
 </ol>
 <p>The types of the fields and properties must also implement ISerialize. Many of the most common types, like <code>int</code>, <code>string</code>, or even <code>List&lt;string&gt;</code>, have built-in support from serde-dn and already have ISerialize implementations. If any of those public fields or properties have a type that you control, they will also need to implement <code>ISerialize</code> or <code>IDeserialize</code>. This is also true for nested references, e.g. <code>List&lt;MyOtherType&gt;</code>.</p>
-<p>If you don't control any of the types you need to serialize or deserialize (i.e., they are defined in another assembly that you can't modify) you'll need to use a <em>wrapper</em> to implement the interface. See <a href="./wrappers.html">wrappers</a> for more info.</p>
+<p>If you don't control any of the types you need to serialize or deserialize (i.e., they are defined in another assembly that you can't modify) you'll need to use a <em>wrapper</em> to implement the interface. See <a href="generator/./wrappers.html">wrappers</a> for more info.</p>
 <h2 id="additional-ideserialize-requirements"><a class="header" href="#additional-ideserialize-requirements">Additional IDeserialize requirements</a></h2>
 <p>Serde-dn is type safe and always uses reflection-free C# code. Thus, to implement IDeserialize the type must have an accessible constructor and accessible members.</p>
 <p>By default, serde-dn requires</p>
@@ -280,6 +280,29 @@ namespace Serde
 <p><code>null</code> by default. When not null, renames the current member to the given argument.</p>
 </li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="handling-generic-types"><a class="header" href="#handling-generic-types">Handling generic types</a></h1>
+<p>For most types, adding Serde.NET support is as easy as implementing the <code>ISerialize</code> and <code>IDeserialize</code> interfaces, which the source generator can do for you.</p>
+<p>Generic types are usually not so easy, because of a specific restriction in the .NET type system.</p>
+<p>Let's say you have a simple custom generic list type, like <code>MyList&lt;T&gt;</code>. Serde already provides built-in support for automatically wrapping Lists using <a href="https://github.com/serdedotnet/serde/blob/main/src/serde/Wrappers.List.cs">prewritten wrappers</a>, but you might have a customization you want to provide. In that case you might try implementing <code>ISerialize</code> and <code>IDeserialize</code> yourself, but run into a problem -- for <code>MyList&lt;T&gt;</code> to be serializable, all its elements (<code>T</code>) must be serializable.</p>
+<p>The natural inclination would be to add a constraint to the <code>MyList&lt;T&gt;</code> definition: <code>MyList&lt;T&gt; where T : ISerialize&lt;T&gt;, IDeserialize&lt;T&gt;</code>. Unfortunately, that won't work. First, it would create a requirement that you could only put serializable elements into the <code>MyList&lt;T&gt;</code> type. However, that's not the contract you want to provide. You want to support serialization in the case that all types are serializable, but you don't want to <em>require</em> that all types be serializable. Second, even the primitive types, like <code>int</code> and <code>string</code>, don't implement <code>ISerialize&lt;T&gt;</code> or <code>IDeserialize&lt;T&gt;</code> directly -- they use wrappers.</p>
+<p>So what's the solution? Using a wrapper type instead. Rather than implement serialization on <code>MyList&lt;T&gt;</code> itself, define a wrapper type for Serde, then point to that wrapper type from the <code>MyList&lt;T&gt;</code> definition. The information at <a href="./generator/wrappers.html">Wrappers</a> is very useful as background.</p>
+<p>One important point is that generic wrappers are slightly different from regular wrappers. To be more flexible they provide serialization and deserialization separately, and therefore are implemented using a different pattern. They start with a static class at the top level, and feature a <code>SerializeImpl</code> and <code>DeserializeImpl</code> nested beneath. For <code>MyList&lt;T&gt;</code> this would look like,</p>
+<pre><code class="language-C#">public static class MyListSerdeWrap
+{
+    public readonly record struct SerializeImpl&lt;T, TWrap&gt;(MyList&lt;T&gt; Value) : ISerialize, ISerialize&lt;MyList&lt;T&gt;&gt;
+        where TWrap : struct, ISerialize, ISerialize&lt;T&gt;, ISerializeWrap&lt;T, TWrap&gt;
+    {
+        ...
+    }
+    public readonly record struct DeserializeImpl&lt;T, TWrap&gt; : IDeserialize&lt;MyList&lt;T&gt;&gt;
+        where TWrap : IDeserialize&lt;T&gt;
+    {
+        ...
+    }
+}
+</code></pre>
+<p>Note that each nested class takes at least two type parameters. The first type parameter is for the type parameter of the original type. The second is for the wrapper that might be needed for previous type parameter. The rule is that for <code>n</code> type parameters on the original type, you'll need <code>2n</code> type paramaeters for the wrapper type.</p>
+<p>The implementation of the wrapper is otherwise standard. For collections, you can reference the <a href="https://github.com/serdedotnet/serde/blob/main/src/serde/Wrappers.List.cs">prewritten List and Dictionary wrappers</a> for implementation tips.</p>
 
                     </main>
 
