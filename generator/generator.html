@@ -167,20 +167,20 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="using-the-source-generator"><a class="header" href="#using-the-source-generator">Using the source generator</a></h1>
-<p>Serde-dn is type-safe, meaning that it requires every serializing type to implement <code>ISerialize</code> or <code>IDeserialize</code> and <em>always</em> uses an interface implementation for controlling serialization.</p>
-<p>For types you control, you could implement those interfaces manually, but most cases can be solved by using the built-in source generator. Two changes are required to use the source generator:</p>
+<p>Serialization in serde is driven by implementions of the <code>ISerde&lt;T&gt;</code> interface through a "serde object". Serde ships with a source generator that can automatically implement these interfaces for any type.</p>
+<p>To use the source generator:</p>
 <ol>
 <li>Make the type <code>partial</code>.</li>
-<li>Add the <code>GenerateSerialize</code> or <code>GenerateDeserialize</code> attribute.</li>
+<li>Add the <code>GenerateSerde</code>, <code>GenerateSerialize</code>, or <code>GenerateDeserialize</code> attribute</li>
 </ol>
 <p>For example,</p>
-<pre><code class="language-C#">class SampleClass
+<pre><code class="language-csharp">class SampleClass
 {
   ...
 }
 </code></pre>
 <p>would become</p>
-<pre><code class="language-C#">[GenerateSerialize]
+<pre><code class="language-csharp">[GenerateSerde]
 partial class SampleClass
 {
   ...
@@ -188,22 +188,18 @@ partial class SampleClass
 </code></pre>
 <p>By default, the source generator will include all the public properties <em>and</em> public fields. The field or property types must either,</p>
 <ol>
+<li>Directly implement the serde interfaces using <code>[GenerateSerde]</code></li>
 <li>Be a serde-dn built-in type, like <code>int</code> or <code>string</code>.</li>
-<li>If the type is in the current assembly, implement <code>I(De)Serialize</code>.</li>
-<li>Be defined in an external assembly, where the source generator will automatically wrap the type (see <a href="./wrappers.html">generated wrappers</a>).</li>
-<li>Define a <a href="./wrappers.html">wrapper type</a> in the current assembly named <code>&lt;TypeName&gt;Wrap</code> in the <code>Serde</code> namespace.</li>
-<li>Specify a custom wrapper.</li>
+<li>Specify a proxy using <code>[SerdeMemberOptions(Proxy = typeof(Proxy))]</code></li>
 </ol>
-<p>The types of the fields and properties must also implement ISerialize. Many of the most common types, like <code>int</code>, <code>string</code>, or even <code>List&lt;string&gt;</code>, have built-in support from serde-dn and already have ISerialize implementations. If any of those public fields or properties have a type that you control, they will also need to implement <code>ISerialize</code> or <code>IDeserialize</code>. This is also true for nested references, e.g. <code>List&lt;MyOtherType&gt;</code>.</p>
-<p>If you don't control any of the types you need to serialize or deserialize (i.e., they are defined in another assembly that you can't modify) you'll need to use a <em>wrapper</em> to implement the interface. See <a href="./wrappers.html">wrappers</a> for more info.</p>
+<p>If you don't control any of the types you need to serialize or deserialize (e.g., they are defined in another assembly that you can't modify) you'll need to specify a <em>proxy</em>. See <a href="../foreign-types.html">External types</a> for more info.</p>
 <h2 id="additional-ideserialize-requirements"><a class="header" href="#additional-ideserialize-requirements">Additional IDeserialize requirements</a></h2>
-<p>Serde-dn is type safe and always uses reflection-free C# code. Thus, to implement IDeserialize the type must have an accessible constructor and accessible members.</p>
-<p>By default, serde-dn requires</p>
+<p>Deserialization needs a way create and initialize a given type. There are two recognized patterns:</p>
 <ol>
-<li>A parameterless constructor</li>
-<li>All fields and properties are writable during creation.</li>
+<li>A parameterless constructor, where all the fields/properties are writable.</li>
+<li>A primary constructor, where all the fields/properties are either writable, or the same name as a one of the constructor parameters.</li>
 </ol>
-<p>If this isn't possible, the constructor used and the properties can be configured through the <code>SerdeTypeOptions</code> attribute.</p>
+<p>If this isn't possible, the constructor used can be configured through the <code>SerdeTypeOptions</code> attribute.</p>
 
                     </main>
 
