@@ -1,0 +1,3 @@
+[submodule "serde"]
+	path = serde
+	url = git@github.com:serdedotnet/serde.git
