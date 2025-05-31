@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>serde-dn</title>
+        <title>Serde.NET</title>
         <meta name="robots" content="noindex">
 
 
@@ -135,7 +135,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">serde-dn</h1>
+                    <h1 class="menu-title">Serde.NET</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
@@ -295,6 +295,65 @@ partial class SampleClass
 <p><code>null</code> by default. When not null, renames the current member to the given argument.</p>
 </li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="data-model"><a class="header" href="#data-model">Data model</a></h1>
+<p>Serde works by taking .NET code, transforming it into the Serde data model, and then translating it into the various output formats. The Serde data model is a subset of the .NET type system, focused on only the pieces that can be translated to serialization output formats.</p>
+<p>In code, the Serde data model is split into two sides: .NET types and output formats. .NET types implement the <code>ISerialize&lt;T&gt;</code>, <code>IDeserialialize&lt;T&gt;</code>, and <code>ISerdeInfo</code> interfaces. Output formats implement the <code>ISerializer</code> and <code>IDeserializer</code> interfaces.</p>
+<p>The Serde data model is as follows:</p>
+<ul>
+<li><strong>Primitive types</strong>
+<ul>
+<li><code>bool</code></li>
+<li><code>I8</code>, <code>I16</code>, <code>I32</code>, and <code>I64</code> (<code>sbyte</code>, <code>short</code>, <code>int</code>, and <code>long</code>)</li>
+<li><code>U8</code>, <code>U16</code>, <code>U32</code>, and <code>U64</code> (<code>byte</code>, <code>ushort</code>, <code>uint</code>, and <code>ulong</code>)</li>
+<li><code>F32</code> and <code>F64</code> (<code>float</code> and <code>double</code>)</li>
+<li><code>decimal</code></li>
+<li><code>string</code></li>
+<li><code>DateTime</code></li>
+</ul>
+</li>
+<li><strong>Contiguous array of bytes</strong>
+<ul>
+<li>Serialization: <code>ReadOnlyMemory&lt;byte&gt;</code></li>
+<li>Deserialization: <code>IBufferWriter&lt;byte&gt;</code></li>
+</ul>
+</li>
+<li><strong>Custom types</strong>
+<ul>
+<li>Structs, classes, and records.</li>
+</ul>
+</li>
+<li><strong>Lists</strong>
+<ul>
+<li>A sequence of elements, like an array or a list. The length does not need to be known ahead-of-time.</li>
+</ul>
+</li>
+<li><strong>Dictionaries</strong>
+<ul>
+<li>A variable-size key-value pair. The length does not need to be known ahead-of-time.</li>
+</ul>
+</li>
+<li><strong>Nullable types</strong>
+<ul>
+<li>Both nullable reference types and nullable value types are supported. All reference types not marked as nullable (<code>?</code> suffix) are assumed to be non-null.</li>
+</ul>
+</li>
+<li><strong>Enums</strong></li>
+<li><strong>Unions</strong>
+<ul>
+<li>Sometimes referred to as "polymorphic types." C# does not yet have built-in support for discriminated unions, but the source generator will match a particular pattern anyway. To write a union type, use an abstract record type, with nested records that inherit from the parent record. The parent record must only have private constructors. For example,</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-csharp">[StaticCs.Closed] // Optional library for annotating union types
+[GenerateSerde]
+abstract partial record UnionBase
+{
+    private UnionBase() { }
+
+    public partial record DerivedA(int A) : UnionBase;
+    public partial record DerivedB(string B) : UnionBase;
+}
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="customization"><a class="header" href="#customization">Customization</a></h1>
 <p>For complete control, you can disable source-generated implementation of the <code>ISerde&lt;T&gt;</code>/<code>ISerialize&lt;T&gt;</code>/<code>IDeserialize&lt;T&gt;</code> interfaces entirely and implement it yourself.</p>
 <p>To specify the custom object, use <code>[GenerateSerde(With = typeof(CustomObject))]</code>. The custom type can be a private nested class, if desired.</p>
@@ -368,9 +427,10 @@ namespace ExternalTypesSample;
 public record Response(string ResponseType, string Body);
 
 // Proxy for the Response type.
-// We use the [GenerateSerde] attribute with the `ForType` parameter to control generation for the
-// proxy type. Since the ResponseProxy type is empty, Serde will assume that we want to automatically
-// use all the public properties and fields of the Response type, with no further customization.
+// We use the [GenerateSerde] attribute with the `ForType` parameter to control
+// generation for the proxy type. Since the ResponseProxy type is empty, Serde
+// will assume that we want to automatically use all the public properties and
+// fields of the Response type, with no further customization.
 [GenerateSerde(ForType = typeof(Response))]
 partial class ResponseProxy;
 
@@ -395,7 +455,7 @@ public class Sample
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="handling-generic-types"><a class="header" href="#handling-generic-types">Handling generic types</a></h1>
 <p>Generic types are more complicated because serialize and deserialize must be separated, in case one of the nested types only implements one of the two operations.</p>
-<p>The pattern is to separate into two separate classes nested underneath a generic type. An example is a custom collection type as follows:</p>
+<p>The pattern is to separate into two separate classes nested underneath a generic type. An example of a custom collection type is as follows:</p>
 <pre><code class="language-csharp">
 using System;
 using System.Collections.Immutable;
@@ -406,26 +466,16 @@ using Serde.Json;
 namespace EqArraySample;
 
 [SerdeTypeOptions(Proxy = typeof(EqArrayProxy))]
-public readonly struct EqArray&lt;T&gt;(ImmutableArray&lt;T&gt; value) : IEquatable&lt;EqArray&lt;T&gt;&gt;
+public readonly struct EqArray&lt;T&gt;(ImmutableArray&lt;T&gt; value)
 {
     public ImmutableArray&lt;T&gt; Array =&gt; value;
-
-    public override bool Equals(object? obj) =&gt; obj is EqArray&lt;T&gt; other &amp;&amp; Equals(other);
-    public bool Equals(EqArray&lt;T&gt; other) =&gt; value.SequenceEqual(other.Array);
-
-    public static bool operator ==(EqArray&lt;T&gt; left, EqArray&lt;T&gt; right) =&gt; left.Equals(right);
-    public static bool operator !=(EqArray&lt;T&gt; left, EqArray&lt;T&gt; right) =&gt; !(left == right);
-
-    public override string ToString() =&gt; $"[ {string.Join(", ", value.Select(item =&gt; item?.ToString() ?? "null"))} ]";
-
-    public override int GetHashCode()
-    =&gt; value.Aggregate(0, (hash, item) =&gt; HashCode.Combine(hash, item?.GetHashCode() ?? 0));
 }
 
 public static class EqArrayProxy
 {
     private static readonly ISerdeInfo s_typeInfo = Serde.SerdeInfo.MakeEnumerable("EqArray");
-    public sealed class Ser&lt;T, TProvider&gt; : ISerializeProvider&lt;EqArray&lt;T&gt;&gt;, ISerialize&lt;EqArray&lt;T&gt;&gt;
+    public sealed class Ser&lt;T, TProvider&gt;
+        : ISerializeProvider&lt;EqArray&lt;T&gt;&gt;, ISerialize&lt;EqArray&lt;T&gt;&gt;
         where TProvider : ISerializeProvider&lt;T&gt;
     {
         public static readonly Ser&lt;T, TProvider&gt; Instance = new();
@@ -435,7 +485,10 @@ public static class EqArrayProxy
 
         void ISerialize&lt;EqArray&lt;T&gt;&gt;.Serialize(EqArray&lt;T&gt; value, ISerializer serializer)
         {
-            ImmutableArrayProxy.Ser&lt;T, TProvider&gt;.Instance.Serialize(value.Array, serializer);
+            ImmutableArrayProxy.Ser&lt;T, TProvider&gt;.Instance.Serialize(
+                value.Array,
+                serializer
+            );
         }
     }
 
@@ -458,21 +511,18 @@ public class GenericTypeSample
     public static void Run()
     {
         var eq = new EqArray&lt;int&gt;([ 1, 2, 3, 4 ]);
-        Console.WriteLine($"Original version: {eq}");
 
-        // Serialize the version to a JSON string
-        // Unlike in regular custom serialization, we can't attach the serde object to
-        // the Version type directly, so we have to pass it in explicitly.
+        // Serialize the version to a JSON string.
+        // Here we pass the proxy parameter explicitly, but if EqArray is a nested field, the
+        // source generator will pass it automatically.
         var json = JsonSerializer.Serialize&lt;EqArray&lt;int&gt;, EqArrayProxy.Ser&lt;int, I32Proxy&gt;&gt;(eq);
         Console.WriteLine($"Serialized version: {json}");
 
-        // Deserialize the JSON string back to a Version object
         var deEq = JsonSerializer.Deserialize&lt;EqArray&lt;int&gt;, EqArrayProxy.De&lt;int, I32Proxy&gt;&gt;(json);
-        if (!eq.Equals(deEq))
+        if (!eq.Array.SequenceEqual(deEq.Array))
         {
             throw new InvalidOperationException("Deserialized version does not match the original.");
         }
-        Console.WriteLine($"Deserialized version: {deEq}");
     }
 }
 </code></pre>

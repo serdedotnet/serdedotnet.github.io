@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>External types - serde-dn</title>
+        <title>External types - Serde.NET</title>
 
 
         <!-- Custom HTML head -->
@@ -134,7 +134,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">serde-dn</h1>
+                    <h1 class="menu-title">Serde.NET</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
@@ -179,9 +179,10 @@ namespace ExternalTypesSample;
 public record Response(string ResponseType, string Body);
 
 // Proxy for the Response type.
-// We use the [GenerateSerde] attribute with the `ForType` parameter to control generation for the
-// proxy type. Since the ResponseProxy type is empty, Serde will assume that we want to automatically
-// use all the public properties and fields of the Response type, with no further customization.
+// We use the [GenerateSerde] attribute with the `ForType` parameter to control
+// generation for the proxy type. Since the ResponseProxy type is empty, Serde
+// will assume that we want to automatically use all the public properties and
+// fields of the Response type, with no further customization.
 [GenerateSerde(ForType = typeof(Response))]
 partial class ResponseProxy;
 
