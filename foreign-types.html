@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - serde-dn</title>
-        <base href="/">
+        <title>External types - serde-dn</title>
 
 
         <!-- Custom HTML head -->
@@ -167,14 +166,56 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="external-types"><a class="header" href="#external-types">External types</a></h1>
+<p>Sometimes you need to serialize or deserialize a type you don't control or can't modify. In these cases, Serde uses a "proxy type" to stand-in for the external type. To create a proxy type, simply create a new class and add the attribute <code>[GenerateSerde(ForType = typeof(ExternalType)]</code>. Serde will automatically use the public properties and fields on the external type if the proxy type is empty. Here's a simple example that assumes there's an external <code>Response</code> record that you can't modify.</p>
+<pre><code class="language-csharp">
+using System;
+using Serde;
+using Serde.Json;
+
+namespace ExternalTypesSample;
+
+// Pretend that Response is an external type that we can't modify directly
+public record Response(string ResponseType, string Body);
+
+// Proxy for the Response type.
+// We use the [GenerateSerde] attribute with the `ForType` parameter to control generation for the
+// proxy type. Since the ResponseProxy type is empty, Serde will assume that we want to automatically
+// use all the public properties and fields of the Response type, with no further customization.
+[GenerateSerde(ForType = typeof(Response))]
+partial class ResponseProxy;
+
+public class Sample
+{
+    public static void Run()
+    {
+        var resp = new Response(ResponseType: "success", Body: "hello, world");
+        Console.WriteLine($"Original version: {resp}");
+
+        // Serialize the Response to a JSON string
+        // In addition to the Response type, we also have to pass in the proxy type
+        var json = JsonSerializer.Serialize&lt;Response, ResponseProxy&gt;(resp);
+        Console.WriteLine($"Serialized version: {json}");
+
+        // Deserialize the JSON string back to a Response object
+        var deResp = JsonSerializer.Deserialize&lt;Response, ResponseProxy&gt;(json);
+        Utils.AssertEq(resp, deResp);
+        Console.WriteLine($"Deserialized version: {deResp}");
+    }
+}
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="customization.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
 
+                            <a rel="next prefetch" href="generic-types.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -182,7 +223,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="customization.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
 
+                    <a rel="next prefetch" href="generic-types.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
             </nav>
 
         </div>
